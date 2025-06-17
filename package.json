@@ -1,0 +1,34 @@
+{
+  "name": "blockchain-wallet-system",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "ts-node src/server.ts",
+    "build": "tsc",
+    "dev": "nodemon --watch .env --watch src src/server.ts"
+  },
+  "dependencies": {
+    "@iarna/toml": "^2.2.5",
+    "@types/ws": "^8.18.1",
+    "abstract-level": "^1.0.4",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.5.0",
+    "ethers": "^5.7.2",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.5.0",
+    "level": "^8.0.0",
+    "lru-cache": "^10.0.0",
+    "uuid": "^9.0.0",
+    "winston": "^3.8.2",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.4.2",
+    "@types/uuid": "^9.0.2",
+    "nodemon": "^3.1.4",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  }
+}

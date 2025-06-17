@@ -1,0 +1,6 @@
+# config/config.toml
+
+[wallet]
+encryption_key = ""
+hot_wallet_key = ""
+hot_wallet_address = ""
