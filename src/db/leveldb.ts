@@ -1,14 +1,14 @@
 // src/db/leveldb.ts
-import { Level } from "level";
-import { LRUCache } from "lru-cache";
-import { logger } from "../utils/logger";
+import { Level } from 'level';
+import { LRUCache } from 'lru-cache';
+import { logger } from '../utils/logger';
 
 export class Database {
   private db: Level<string, any>;
   private cache: LRUCache<string, any>;
 
-  constructor(dbPath: string = "./data/db") {
-    this.db = new Level<string, any>(dbPath, { valueEncoding: "json" });
+  constructor(dbPath: string = './data/db') {
+    this.db = new Level<string, any>(dbPath, { valueEncoding: 'json' });
     this.cache = new LRUCache<string, any>({
       max: 10000,
       ttl: 1000 * 60 * 5, // 5 minutes TTL for cache
@@ -27,7 +27,7 @@ export class Database {
       logger.debug(`Cache miss for key: ${key}, fetched from DB`);
       return value;
     } catch (err: any) {
-      if (err.code === "LEVEL_NOT_FOUND") {
+      if (err.code === 'LEVEL_NOT_FOUND') {
         return null;
       }
       logger.error(`DB get error for key ${key}: ${err.message}`);
@@ -57,18 +57,20 @@ export class Database {
     }
   }
 
-  async batch(operations: { type: "put" | "del"; key: string; value?: any }[]): Promise<void> {
+  async batch(
+    operations: { type: 'put' | 'del'; key: string; value?: any }[]
+  ): Promise<void> {
     try {
       const batchOps = operations.map(op =>
-        op.type === "put"
-          ? { type: "put" as const, key: op.key, value: op.value }
-          : { type: "del" as const, key: op.key }
+        op.type === 'put'
+          ? { type: 'put' as const, key: op.key, value: op.value }
+          : { type: 'del' as const, key: op.key }
       );
       await this.db.batch(batchOps);
-      operations.forEach((op) => {
-        if (op.type === "put") {
+      operations.forEach(op => {
+        if (op.type === 'put') {
           this.cache.set(op.key, op.value);
-        } else if (op.type === "del") {
+        } else if (op.type === 'del') {
           this.cache.delete(op.key);
         }
       });
@@ -82,7 +84,10 @@ export class Database {
   async iterator(prefix: string): Promise<any[]> {
     const results: any[] = [];
     try {
-      for await (const [key, value] of this.db.iterator({ gte: prefix, lte: prefix + "\uffff" })) {
+      for await (const [key, value] of this.db.iterator({
+        gte: prefix,
+        lte: prefix + '\uffff',
+      })) {
         results.push({ key, value });
       }
       return results;
