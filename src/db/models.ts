@@ -1,9 +1,9 @@
 // src/db/models.ts
 import { db } from "./leveldb";
-import { encrypt, decrypt } from "../utils/encryption";
 import { logger } from "../utils/logger";
 import { networks } from "../config/networks";
 
+// Existing interfaces unchanged
 export interface Account {
   username: string;
   address: string;
@@ -15,8 +15,8 @@ export interface Balance {
   username: string;
   blockchain: string;
   currency: string;
-  amount: string; // Available balance
-  frozenAmount: string; // Frozen balance for pending withdrawals
+  amount: string;
+  frozenAmount: string;
 }
 
 export interface Deposit {
@@ -32,6 +32,7 @@ export interface Deposit {
   confirmations: number;
   requiredConfirmations: number;
   timestamp: number;
+    retries?: number; 
 }
 
 export interface Withdrawal {
@@ -56,6 +57,17 @@ export interface Bucket {
   withdrawalIds: string[];
 }
 
+// New interface for block cache
+export interface BlockCache {
+  id: string; // Format: `${blockchain}:${blockNumber}`
+  blockchain: string;
+  blockNumber: number;
+  blockData: any; // ethers.providers.BlockWithTransactions
+  timestamp: number;
+  expiresAt: number; // TTL for cache
+}
+
+// Existing AccountModel, BalanceModel, DepositModel, WithdrawalModel, BucketModel unchanged
 export class AccountModel {
   static async create(account: Account): Promise<void> {
     await db.put(`account:${account.username}`, account);
@@ -240,5 +252,43 @@ export class BucketModel {
     return buckets
       .map((b) => b.value as Bucket)
       .filter((b) => b.expiresAt > Date.now());
+  }
+}
+
+// New BlockCacheModel
+export class BlockCacheModel {
+  static async create(blockCache: BlockCache): Promise<void> {
+    await db.put(`blockCache:${blockCache.id}`, blockCache);
+    logger.debug(`Cached block ${blockCache.id}`);
+  }
+
+  static async findById(id: string): Promise<BlockCache | null> {
+    return await db.get(`blockCache:${id}`);
+  }
+
+  static async getByBlockchain(blockchain: string): Promise<BlockCache[]> {
+    const blocks = await db.iterator(`blockCache:${blockchain}:`);
+    return blocks
+      .map((b) => b.value as BlockCache)
+      .filter((b) => b.expiresAt > Date.now())
+      .sort((a, b) => a.blockNumber - b.blockNumber);
+  }
+
+  static async delete(id: string): Promise<void> {
+    await db.del(`blockCache:${id}`);
+    logger.debug(`Deleted cached block ${id}`);
+  }
+
+  static async cleanupExpired(blockchain: string): Promise<void> {
+    const blocks = await db.iterator(`blockCache:${blockchain}:`);
+    const now = Date.now();
+    const ops = blocks
+      .map((b) => b.value as BlockCache)
+      .filter((b) => b.expiresAt <= now)
+      .map((b) => ({ type: "del" as const, key: `blockCache:${b.id}` }));
+    if (ops.length > 0) {
+      await db.batch(ops);
+      logger.info(`Cleaned up ${ops.length} expired blocks for ${blockchain}`);
+    }
   }
 }
