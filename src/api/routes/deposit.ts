@@ -1,13 +1,18 @@
 // src/api/routes/deposit.ts
-import express from "express";
-import { DepositModel } from "../../db/models";
-import { logger } from "../../utils/logger";
+import express from 'express';
+import { DepositModel } from '../../db/models';
+import { logger } from '../../utils/logger';
 
 const router = express.Router();
 
-router.get("/get_all_deposit_history", async (req, res) => {
+router.get('/get_all_deposit_history', async (req, res) => {
   try {
-    const { username, page = "1", limit = "10", status } = req.query as {
+    const {
+      username,
+      page = '1',
+      limit = '10',
+      status,
+    } = req.query as {
       username: string;
       page?: string;
       limit?: string;
@@ -21,7 +26,7 @@ router.get("/get_all_deposit_history", async (req, res) => {
     res.json(deposits);
   } catch (err: any) {
     logger.error(`Error in get_all_deposit_history: ${err.message}`);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

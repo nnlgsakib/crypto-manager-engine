@@ -1,7 +1,7 @@
 // src/db/models.ts
-import { db } from "./leveldb";
-import { logger } from "../utils/logger";
-import { networks } from "../config/networks";
+import { db } from './leveldb';
+import { logger } from '../utils/logger';
+import { networks } from '../config/networks';
 
 // Existing interfaces unchanged
 export interface Account {
@@ -28,11 +28,11 @@ export interface Deposit {
   txHash: string;
   fromAddress: string;
   toAddress: string;
-  status: "pending" | "confirming" | "confirmed" | "credited" | "failed";
+  status: 'pending' | 'confirming' | 'confirmed' | 'credited' | 'failed';
   confirmations: number;
   requiredConfirmations: number;
   timestamp: number;
-    retries?: number; 
+  retries?: number;
 }
 
 export interface Withdrawal {
@@ -42,7 +42,7 @@ export interface Withdrawal {
   currency: string;
   amount: string;
   toAddress: string;
-  status: "created" | "added_to_bucket" | "processing" | "completed" | "failed";
+  status: 'created' | 'added_to_bucket' | 'processing' | 'completed' | 'failed';
   bucketId?: string;
   txHash?: string;
   timestamp: number;
@@ -78,13 +78,21 @@ export class AccountModel {
   }
 
   static async findByAddress(address: string): Promise<Account | null> {
-    const accounts = await db.iterator("account:");
-    return accounts.find((a) => a.value.address.toLowerCase() === address.toLowerCase())?.value || null;
+    const accounts = await db.iterator('account:');
+    return (
+      accounts.find(
+        a => a.value.address.toLowerCase() === address.toLowerCase()
+      )?.value || null
+    );
   }
 }
 
 export class BalanceModel {
-  static async getBalance(username: string, blockchain: string, currency: string): Promise<Balance> {
+  static async getBalance(
+    username: string,
+    blockchain: string,
+    currency: string
+  ): Promise<Balance> {
     const key = `balance:${username}:${blockchain}:${currency}`;
     const balance = await db.get(key);
     return (
@@ -92,8 +100,8 @@ export class BalanceModel {
         username,
         blockchain,
         currency,
-        amount: "0.00",
-        frozenAmount: "0.00",
+        amount: '0.00',
+        frozenAmount: '0.00',
       }
     );
   }
@@ -103,26 +111,39 @@ export class BalanceModel {
     const parsedAmount = parseFloat(balance.amount);
     const parsedFrozenAmount = parseFloat(balance.frozenAmount);
     if (parsedAmount < 0) {
-      throw new Error(`Negative amount not allowed for ${balance.username}: ${balance.amount} ${balance.currency}`);
+      throw new Error(
+        `Negative amount not allowed for ${balance.username}: ${balance.amount} ${balance.currency}`
+      );
     }
     if (parsedFrozenAmount < 0) {
-      throw new Error(`Negative frozen amount not allowed for ${balance.username}: ${balance.frozenAmount} ${balance.currency}`);
+      throw new Error(
+        `Negative frozen amount not allowed for ${balance.username}: ${balance.frozenAmount} ${balance.currency}`
+      );
     }
     await db.put(key, {
       ...balance,
       amount: parsedAmount.toFixed(2),
       frozenAmount: parsedFrozenAmount.toFixed(2),
     });
-    logger.debug(`Updated balance for ${balance.username}: ${balance.amount} ${balance.currency}, frozen: ${balance.frozenAmount}`);
+    logger.debug(
+      `Updated balance for ${balance.username}: ${balance.amount} ${balance.currency}, frozen: ${balance.frozenAmount}`
+    );
   }
 
-  static async freezeBalance(username: string, blockchain: string, currency: string, amountToFreeze: string): Promise<void> {
+  static async freezeBalance(
+    username: string,
+    blockchain: string,
+    currency: string,
+    amountToFreeze: string
+  ): Promise<void> {
     const balance = await this.getBalance(username, blockchain, currency);
     const available = parseFloat(balance.amount);
-    const frozen = parseFloat(balance.frozenAmount || "0.00");
+    const frozen = parseFloat(balance.frozenAmount || '0.00');
     const amount = parseFloat(amountToFreeze);
     if (available < amount) {
-      throw new Error(`Insufficient available balance to freeze: ${available} ${currency}, required: ${amount}`);
+      throw new Error(
+        `Insufficient available balance to freeze: ${available} ${currency}, required: ${amount}`
+      );
     }
     const newBalance: Balance = {
       username,
@@ -132,15 +153,24 @@ export class BalanceModel {
       frozenAmount: (frozen + amount).toFixed(2),
     };
     await this.updateBalance(newBalance);
-    logger.info(`Froze ${amount} ${currency} for ${username}, new available: ${newBalance.amount}, frozen: ${newBalance.frozenAmount}`);
+    logger.info(
+      `Froze ${amount} ${currency} for ${username}, new available: ${newBalance.amount}, frozen: ${newBalance.frozenAmount}`
+    );
   }
 
-  static async unfreezeBalance(username: string, blockchain: string, currency: string, amountToUnfreeze: string): Promise<void> {
+  static async unfreezeBalance(
+    username: string,
+    blockchain: string,
+    currency: string,
+    amountToUnfreeze: string
+  ): Promise<void> {
     const balance = await this.getBalance(username, blockchain, currency);
-    const frozen = parseFloat(balance.frozenAmount || "0.00");
+    const frozen = parseFloat(balance.frozenAmount || '0.00');
     const amount = parseFloat(amountToUnfreeze);
     if (frozen < amount) {
-      logger.warn(`Attempt to unfreeze more than frozen: ${amount} ${currency}, frozen: ${frozen}`);
+      logger.warn(
+        `Attempt to unfreeze more than frozen: ${amount} ${currency}, frozen: ${frozen}`
+      );
       return;
     }
     const newBalance: Balance = {
@@ -151,17 +181,31 @@ export class BalanceModel {
       frozenAmount: (frozen - amount).toFixed(2),
     };
     await this.updateBalance(newBalance);
-    logger.info(`Unfroze ${amount} ${currency} for ${username}, new available: ${newBalance.amount}, frozen: ${newBalance.frozenAmount}`);
+    logger.info(
+      `Unfroze ${amount} ${currency} for ${username}, new available: ${newBalance.amount}, frozen: ${newBalance.frozenAmount}`
+    );
   }
 
-  static async getAllBalances(username: string): Promise<Record<string, Record<string, { amount: string; frozenAmount: string }>>> {
+  static async getAllBalances(
+    username: string
+  ): Promise<
+    Record<string, Record<string, { amount: string; frozenAmount: string }>>
+  > {
     const balances = await db.iterator(`balance:${username}:`);
-    const result: Record<string, Record<string, { amount: string; frozenAmount: string }>> = {};
+    const result: Record<
+      string,
+      Record<string, { amount: string; frozenAmount: string }>
+    > = {};
 
     for (const [blockchain, config] of Object.entries(networks)) {
-      result[blockchain] = { [config.nativeCurrency]: { amount: "0.00", frozenAmount: "0.00" } };
+      result[blockchain] = {
+        [config.nativeCurrency]: { amount: '0.00', frozenAmount: '0.00' },
+      };
       for (const [tokenName] of Object.entries(config.erc20Tokens)) {
-        result[blockchain][tokenName] = { amount: "0.00", frozenAmount: "0.00" };
+        result[blockchain][tokenName] = {
+          amount: '0.00',
+          frozenAmount: '0.00',
+        };
       }
     }
 
@@ -172,7 +216,7 @@ export class BalanceModel {
       }
       result[balance.blockchain][balance.currency] = {
         amount: balance.amount,
-        frozenAmount: balance.frozenAmount || "0.00",
+        frozenAmount: balance.frozenAmount || '0.00',
       };
     }
 
@@ -199,8 +243,12 @@ export class DepositModel {
   ): Promise<Deposit[]> {
     const deposits = await db.iterator(`deposit:`);
     let filtered = deposits
-      .map((d) => d.value as Deposit)
-      .filter((d) => d.username === username && (!options.status || d.status === options.status))
+      .map(d => d.value as Deposit)
+      .filter(
+        d =>
+          d.username === username &&
+          (!options.status || d.status === options.status)
+      )
       .sort((a, b) => b.timestamp - a.timestamp);
     const start = (options.page - 1) * options.limit;
     return filtered.slice(start, start + options.limit);
@@ -226,8 +274,12 @@ export class WithdrawalModel {
   ): Promise<Withdrawal[]> {
     const withdrawals = await db.iterator(`withdrawal:`);
     let filtered = withdrawals
-      .map((w) => w.value as Withdrawal)
-      .filter((w) => w.username === username && (!options.status || w.status === options.status))
+      .map(w => w.value as Withdrawal)
+      .filter(
+        w =>
+          w.username === username &&
+          (!options.status || w.status === options.status)
+      )
       .sort((a, b) => b.timestamp - a.timestamp);
     const start = (options.page - 1) * options.limit;
     return filtered.slice(start, start + options.limit);
@@ -250,8 +302,8 @@ export class BucketModel {
   static async getActiveBuckets(): Promise<Bucket[]> {
     const buckets = await db.iterator(`bucket:`);
     return buckets
-      .map((b) => b.value as Bucket)
-      .filter((b) => b.expiresAt > Date.now());
+      .map(b => b.value as Bucket)
+      .filter(b => b.expiresAt > Date.now());
   }
 }
 
@@ -269,8 +321,8 @@ export class BlockCacheModel {
   static async getByBlockchain(blockchain: string): Promise<BlockCache[]> {
     const blocks = await db.iterator(`blockCache:${blockchain}:`);
     return blocks
-      .map((b) => b.value as BlockCache)
-      .filter((b) => b.expiresAt > Date.now())
+      .map(b => b.value as BlockCache)
+      .filter(b => b.expiresAt > Date.now())
       .sort((a, b) => a.blockNumber - b.blockNumber);
   }
 
@@ -283,9 +335,9 @@ export class BlockCacheModel {
     const blocks = await db.iterator(`blockCache:${blockchain}:`);
     const now = Date.now();
     const ops = blocks
-      .map((b) => b.value as BlockCache)
-      .filter((b) => b.expiresAt <= now)
-      .map((b) => ({ type: "del" as const, key: `blockCache:${b.id}` }));
+      .map(b => b.value as BlockCache)
+      .filter(b => b.expiresAt <= now)
+      .map(b => ({ type: 'del' as const, key: `blockCache:${b.id}` }));
     if (ops.length > 0) {
       await db.batch(ops);
       logger.info(`Cleaned up ${ops.length} expired blocks for ${blockchain}`);
