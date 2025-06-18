@@ -11,7 +11,7 @@ export class Database {
     this.db = new Level<string, any>(dbPath, { valueEncoding: "json" });
     this.cache = new LRUCache<string, any>({
       max: 10000,
-      ttl: 1000 * 60 * 5, // 5 minutes TTL
+      ttl: 1000 * 60 * 5, // 5 minutes TTL for cache
     });
   }
 
@@ -59,10 +59,10 @@ export class Database {
 
   async batch(operations: { type: "put" | "del"; key: string; value?: any }[]): Promise<void> {
     try {
-      const batchOps = operations.map(op => 
-        op.type === 'put' 
-          ? { type: 'put' as const, key: op.key, value: op.value }
-          : { type: 'del' as const, key: op.key }
+      const batchOps = operations.map(op =>
+        op.type === "put"
+          ? { type: "put" as const, key: op.key, value: op.value }
+          : { type: "del" as const, key: op.key }
       );
       await this.db.batch(batchOps);
       operations.forEach((op) => {

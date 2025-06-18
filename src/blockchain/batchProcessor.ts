@@ -4,6 +4,7 @@ import { networks } from "../config/networks";
 import { WithdrawalModel, BucketModel, Withdrawal, Bucket, Balance, BalanceModel } from "../db/models";
 import { logger } from "../utils/logger";
 import keys from "../config/keys";
+import { WebSocketService } from "../services/websocket";
 
 export class BatchProcessorService {
   private static hotWalletPrivateKey = keys.hot_wallet_key;
@@ -36,6 +37,10 @@ export class BatchProcessorService {
       withdrawal.status = "added_to_bucket";
       await Promise.all([BucketModel.update(bucket), WithdrawalModel.update(withdrawal)]);
       logger.info(`Added withdrawal ${withdrawal.id} to bucket ${bucketId}, expires at ${new Date(bucket.expiresAt).toISOString()}`);
+      WebSocketService.broadcast({
+        type: "withdrawal_update",
+        data: withdrawal,
+      });
 
       return bucket;
     } catch (err: any) {
@@ -92,6 +97,10 @@ export class BatchProcessorService {
       for (const w of validWithdrawals) {
         w.status = "processing";
         await WithdrawalModel.update(w);
+        WebSocketService.broadcast({
+          type: "withdrawal_update",
+          data: w,
+        });
         recipients.push(w.toAddress);
         amounts.push(
           ethers.utils.parseUnits(
@@ -203,11 +212,19 @@ export class BatchProcessorService {
             logger.info(
               `Processed withdrawal ${w.id} for ${w.username} (${w.amount} ${w.currency} + ${fee} fee), frozen: ${newBalance.frozenAmount}`
             );
+            WebSocketService.broadcast({
+              type: "withdrawal_update",
+              data: w,
+            });
           } else {
             w.status = "failed";
             await BalanceModel.unfreezeBalance(w.username, w.blockchain, w.currency, totalReserved.toFixed(2));
             await WithdrawalModel.update(w);
             logger.error(`Marked withdrawal ${w.id} as failed, unfroze ${totalReserved} ${w.currency}`);
+            WebSocketService.broadcast({
+              type: "withdrawal_update",
+              data: w,
+            });
           }
         }
       } catch (err: any) {
@@ -219,6 +236,10 @@ export class BatchProcessorService {
           await BalanceModel.unfreezeBalance(w.username, w.blockchain, w.currency, totalReserved.toFixed(2));
           await WithdrawalModel.update(w);
           logger.error(`Marked withdrawal ${w.id} as failed, unfroze ${totalReserved} ${w.currency}`);
+          WebSocketService.broadcast({
+            type: "withdrawal_update",
+            data: w,
+          });
         }
         throw err;
       } finally {
