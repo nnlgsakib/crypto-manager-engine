@@ -5,3 +5,4 @@ data
 dist
 config.toml
 .log\build
+build
