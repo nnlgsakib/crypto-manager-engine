@@ -4,6 +4,7 @@
   "scripts": {
     "start": "ts-node src/server.ts",
     "build": "tsc",
+    "build:bin": "bun build src/server.ts --compile --outfile ./build/bin",
     "dev": "nodemon --watch .env --watch src src/server.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\""

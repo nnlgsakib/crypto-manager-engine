@@ -4,4 +4,4 @@ logs
 data
 dist
 config.toml
-.log
+.log\build
