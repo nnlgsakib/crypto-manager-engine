@@ -1,4 +1,3 @@
-// src/blockchain/batchProcessor.ts
 import { ethers } from 'ethers';
 import { networks } from '../config/networks';
 import {
@@ -294,8 +293,23 @@ export class BatchProcessorService {
               type: 'withdrawal_update',
               data: w,
             });
+            WebSocketService.broadcast({
+              type: 'balance_update',
+              data: {
+                username: w.username,
+                blockchain: w.blockchain,
+                currency: w.currency,
+                amount: newBalance.amount,
+                frozenAmount: newBalance.frozenAmount,
+              },
+            });
           } else {
             w.status = 'failed';
+            const balance = await BalanceModel.getBalance(
+              w.username,
+              w.blockchain,
+              w.currency
+            );
             await BalanceModel.unfreezeBalance(
               w.username,
               w.blockchain,
@@ -310,6 +324,18 @@ export class BatchProcessorService {
               type: 'withdrawal_update',
               data: w,
             });
+            WebSocketService.broadcast({
+              type: 'balance_update',
+              data: {
+                username: w.username,
+                blockchain: w.blockchain,
+                currency: w.currency,
+                amount: (parseFloat(balance.amount) + totalReserved).toFixed(2),
+                frozenAmount: (
+                  parseFloat(balance.frozenAmount || '0') - totalReserved
+                ).toFixed(2),
+              },
+            });
           }
         }
       } catch (err: any) {
@@ -320,6 +346,11 @@ export class BatchProcessorService {
         for (const w of validWithdrawals) {
           const totalReserved = parseFloat(w.amount) + fee;
           w.status = 'failed';
+          const balance = await BalanceModel.getBalance(
+            w.username,
+            w.blockchain,
+            w.currency
+          );
           await BalanceModel.unfreezeBalance(
             w.username,
             w.blockchain,
@@ -333,6 +364,18 @@ export class BatchProcessorService {
           WebSocketService.broadcast({
             type: 'withdrawal_update',
             data: w,
+          });
+          WebSocketService.broadcast({
+            type: 'balance_update',
+            data: {
+              username: w.username,
+              blockchain: w.blockchain,
+              currency: w.currency,
+              amount: (parseFloat(balance.amount) + totalReserved).toFixed(2),
+              frozenAmount: (
+                parseFloat(balance.frozenAmount || '0') - totalReserved
+              ).toFixed(2),
+            },
           });
         }
         throw err;

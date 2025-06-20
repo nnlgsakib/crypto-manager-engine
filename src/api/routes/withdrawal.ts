@@ -1,4 +1,3 @@
-// src/api/routes/withdrawal.ts
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { networks } from '../../config/networks';
@@ -12,6 +11,7 @@ import {
 import { BatchProcessorService } from '../../blockchain/batchProcessor';
 import { logger } from '../../utils/logger';
 import { ethers } from 'ethers';
+import { WebSocketService } from '../../services/websocket';
 
 const router = express.Router();
 
@@ -68,6 +68,42 @@ router.post('/send_balance_to_user', async (req, res) => {
       BalanceModel.updateBalance(newBalance),
       BalanceModel.updateBalance(newRecipientBalance),
     ]);
+
+    // Broadcast balance updates
+    WebSocketService.broadcast({
+      type: 'balance_update',
+      data: {
+        username,
+        blockchain,
+        currency,
+        amount: newBalance.amount,
+        frozenAmount: newBalance.frozenAmount,
+      },
+    });
+    WebSocketService.broadcast({
+      type: 'balance_update',
+      data: {
+        username: recipientUsername,
+        blockchain,
+        currency,
+        amount: newRecipientBalance.amount,
+        frozenAmount: newRecipientBalance.frozenAmount,
+      },
+    });
+
+    // Broadcast transfer update
+    WebSocketService.broadcast({
+      type: 'transfer_update',
+      data: {
+        senderUsername: username,
+        recipientUsername,
+        blockchain,
+        currency,
+        amount: parsedAmount.toFixed(2),
+        timestamp: Date.now(),
+      },
+    });
+
     res.json({ message: 'Transfer successful' });
   } catch (err: any) {
     logger.error(`Error in send_balance_to_user: ${err.message}`);

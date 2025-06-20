@@ -1,4 +1,3 @@
-// src/blockchain/indexer.ts
 import { ethers } from 'ethers';
 import { networks } from '../config/networks';
 import { db } from '../db/leveldb';
@@ -484,7 +483,6 @@ export class IndexerService {
     const queueKey = `${network}:${currencyName}`;
     this.pendingQueues.get(queueKey)!.add(tx.hash);
     await db.put(`depositStartBlock:${tx.hash}`, blockNumber.toString());
-    //  logger.info(`Queued deposit ${tx.hash} for ${account.username} (${amount} ${currencyName}) on ${network}`);
     WebSocketService.broadcast({
       type: 'deposit_update',
       data: deposit,
@@ -584,6 +582,16 @@ export class IndexerService {
         WebSocketService.broadcast({
           type: 'deposit_update',
           data: deposit,
+        });
+        WebSocketService.broadcast({
+          type: 'balance_update',
+          data: {
+            username: deposit.username,
+            blockchain: deposit.blockchain,
+            currency: deposit.currency,
+            amount: newBalance.amount,
+            frozenAmount: newBalance.frozenAmount,
+          },
         });
       } else if (confirmations !== deposit.confirmations) {
         deposit.confirmations = Math.min(
